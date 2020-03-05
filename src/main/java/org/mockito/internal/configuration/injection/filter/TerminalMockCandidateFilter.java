@@ -36,7 +36,8 @@ public class TerminalMockCandidateFilter implements MockCandidateFilter {
                             setField(injectee, candidateFieldToBeInjected,matchingMock);
                         }
                     } catch (RuntimeException e) {
-                        throw cannotInjectDependency(candidateFieldToBeInjected, matchingMock, e);
+                        final Throwable details = e.getCause() == null ? e : e.getCause();
+                        throw cannotInjectDependency(candidateFieldToBeInjected, matchingMock, details);
                     }
                     return matchingMock;
                 }

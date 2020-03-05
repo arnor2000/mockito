@@ -40,15 +40,7 @@ public class InjectingAnnotationEngine implements AnnotationEngine, org.mockito.
      */
     public void process(Class<?> clazz, Object testInstance) {
         processIndependentAnnotations(testInstance.getClass(), testInstance);
-        processInjectMocks(testInstance.getClass(), testInstance);
-    }
-
-    private void processInjectMocks(final Class<?> clazz, final Object testInstance) {
-        Class<?> classContext = clazz;
-        while (classContext != Object.class) {
-            injectMocks(testInstance);
-            classContext = classContext.getSuperclass();
-        }
+        injectMocks(testInstance);
     }
 
     private void processIndependentAnnotations(final Class<?> clazz, final Object testInstance) {
@@ -85,6 +77,12 @@ public class InjectingAnnotationEngine implements AnnotationEngine, org.mockito.
             clazz = clazz.getSuperclass();
         }
 
+        Set<Object> previousMocks;
+        do {
+            previousMocks = mocks;
+            new DefaultInjectionEngine().injectOngoingMocksOnFields(mockDependentFields, mocks, testClassInstance);
+            mocks = new MockScanner(testClassInstance, testClassInstance.getClass()).scanHierarchy();
+        } while (!previousMocks.equals(mocks));
         new DefaultInjectionEngine().injectMocksOnFields(mockDependentFields, mocks, testClassInstance);
     }
 

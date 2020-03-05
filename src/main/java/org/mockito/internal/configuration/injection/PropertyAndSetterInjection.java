@@ -23,6 +23,8 @@ import org.mockito.internal.configuration.injection.filter.NameBasedCandidateFil
 import org.mockito.internal.configuration.injection.filter.TerminalMockCandidateFilter;
 import org.mockito.internal.configuration.injection.filter.TypeBasedCandidateFilter;
 import org.mockito.internal.util.collections.ListUtil;
+import org.mockito.internal.util.reflection.ConstructorResolver;
+import org.mockito.internal.util.reflection.ConstructorResolver.NoArgsConstructorResolver;
 import org.mockito.internal.util.reflection.FieldInitializationReport;
 import org.mockito.internal.util.reflection.FieldInitializer;
 
@@ -56,8 +58,8 @@ import org.mockito.internal.util.reflection.FieldInitializer;
  * </p>
  *
  * <p>
- * <u>Note:</u> If the field needing injection is not initialized, the strategy tries
- * to create one using a no-arg constructor of the field type.
+ * <u>Note:</u> If the field needing injection is not initialized, the strategy tries to create one
+ * using a no-arg constructor of the field type or fails with an explicit message.
  * </p>
  */
 public class PropertyAndSetterInjection extends MockInjectionStrategy {
@@ -77,6 +79,10 @@ public class PropertyAndSetterInjection extends MockInjectionStrategy {
     public boolean processInjection(Field injectMocksField, Object injectMocksFieldOwner, Set<Object> mockCandidates) {
         FieldInitializationReport report = initializeInjectMocksField(injectMocksField, injectMocksFieldOwner);
 
+        if (!report.fieldIsInitialized()) {
+            return false;
+        }
+
         // for each field in the class hierarchy
         boolean injectionOccurred = false;
         Class<?> fieldClass = report.fieldClass();
@@ -90,7 +96,8 @@ public class PropertyAndSetterInjection extends MockInjectionStrategy {
 
     private FieldInitializationReport initializeInjectMocksField(Field field, Object fieldOwner) {
         try {
-            return new FieldInitializer(fieldOwner, field).initialize();
+            final ConstructorResolver constructorResolver = createConstructorResolver(field.getType());
+            return new FieldInitializer(fieldOwner, field, constructorResolver).initialize();
         } catch (MockitoException e) {
             if(e.getCause() instanceof InvocationTargetException) {
                 Throwable realCause = e.getCause().getCause();
@@ -100,6 +107,9 @@ public class PropertyAndSetterInjection extends MockInjectionStrategy {
         }
     }
 
+    protected ConstructorResolver createConstructorResolver(Class<?> fieldType) {
+        return new NoArgsConstructorResolver(fieldType);
+    }
 
     private boolean injectMockCandidates(Class<?> awaitingInjectionClazz, Object injectee, Set<Object> mocks) {
         boolean injectionOccurred;
